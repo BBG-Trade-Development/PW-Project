@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:\\Users\\mchung\\Downloads\\folderwine_104008.ico'],
+    icon=['folderwine_104008.ico'],
 )
