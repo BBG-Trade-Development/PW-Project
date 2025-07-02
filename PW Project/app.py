@@ -14,7 +14,7 @@ def resource_path(relative_path):
 
 def get_output_dir():
     """Output folder created in same location as APP containing excel output"""
-    base_path = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
+    base_path = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__)) 
     out_dir = os.path.join(base_path, 'outputs')
     os.makedirs(out_dir, exist_ok=True)
     return out_dir
