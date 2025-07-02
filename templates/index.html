@@ -74,6 +74,29 @@
                                 <p id="vendor_id_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
                             </div>
 
+                            <!-- Date Entry -->
+                            <div class="space-y-3">
+                                <label for="date_entry" class="flex items-center gap-2 font-semibold text-gray-800 uppercase tracking-wide text-sm">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                        <line x1="3" y1="10" x2="21" y2="10"/>
+                                    </svg>
+                                    Date Entry
+                                </label>
+                                <input 
+                                    id="date_entry" 
+                                    type="date" 
+                                    class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
+                                    required
+                                />
+                                <p class="text-gray-500 italic text-center text-xs">
+                                    Select a date (YYYY-MM-DD)
+                                </p>
+                                <p id="date_entry_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
+                            </div>
+
                             <!-- GP2 Threshold -->
                             <div class="space-y-3">
                                 <label for="gp2_threshold" class="flex items-center gap-2 font-semibold text-gray-800 uppercase tracking-wide text-sm">
@@ -141,11 +164,13 @@
         // Get DOM elements
         const vendorForm = document.getElementById('vendorForm');
         const vendorIdInput = document.getElementById('vendor_id');
+        const dateEntryInput = document.getElementById('date_entry');
         const gp2ThresholdInput = document.getElementById('gp2_threshold');
         const submitBtn = document.getElementById('submitBtn');
         const clearBtn = document.getElementById('clearBtn');
         const messagesDiv = document.getElementById('messages');
         const vendorIdError = document.getElementById('vendor_id_error');
+        const dateEntryError = document.getElementById('date_entry_error');
         const gp2ThresholdError = document.getElementById('gp2_threshold_error');
 
         // Validation functions
@@ -154,6 +179,18 @@
                 return "Vendor ID must be exactly 6 digits starting with '3'";
             }
             return null;
+        }
+
+        function validateDateEntry(value) {
+            if (!value) {
+                return "Please select a valid date";
+            }
+            try {
+                new Date(value);
+                return null;
+            } catch {
+                return "Invalid date format";
+            }
         }
 
         function validateGp2Threshold(value) {
@@ -202,11 +239,14 @@
         // Clear form
         function clearForm() {
             vendorIdInput.value = '';
+            dateEntryInput.value = '';
             gp2ThresholdInput.value = '';
             hideError('vendor_id_error');
+            hideError('date_entry_error');
             hideError('gp2_threshold_error');
             clearMessages();
             vendorIdInput.classList.remove('border-red-500', 'bg-red-50');
+            dateEntryInput.classList.remove('border-red-500', 'bg-red-50');
             gp2ThresholdInput.classList.remove('border-red-500', 'bg-red-50');
             clearBtn.classList.add('shake');
             setTimeout(() => clearBtn.classList.remove('shake'), 500);
@@ -228,6 +268,22 @@
                 if (error) {
                     showError('vendor_id_error', error);
                     vendorIdInput.classList.add('border-red-500', 'bg-red-50');
+                }
+            }
+        });
+
+        // Date Entry input validation
+        dateEntryInput.addEventListener('input', function(e) {
+            const value = e.target.value;
+            
+            hideError('date_entry_error');
+            dateEntryInput.classList.remove('border-red-500', 'bg-red-50');
+            
+            if (value) {
+                const error = validateDateEntry(value);
+                if (error) {
+                    showError('date_entry_error', error);
+                    dateEntryInput.classList.add('border-red-500', 'bg-red-50');
                 }
             }
         });
@@ -261,15 +317,18 @@
             if (isSubmitting) return;
             
             const vendorId = vendorIdInput.value;
+            const dateEntry = dateEntryInput.value;
             const gp2Threshold = gp2ThresholdInput.value;
             
             // Clear previous messages
             clearMessages();
             hideError('vendor_id_error');
+            hideError('date_entry_error');
             hideError('gp2_threshold_error');
             
             // Validate
             const vendorError = validateVendorId(vendorId);
+            const dateError = validateDateEntry(dateEntry);
             const thresholdError = validateGp2Threshold(gp2Threshold);
             
             if (vendorError) {
@@ -277,12 +336,17 @@
                 vendorIdInput.classList.add('border-red-500', 'bg-red-50');
             }
             
+            if (dateError) {
+                showError('date_entry_error', dateError);
+                dateEntryInput.classList.add('border-red-500', 'bg-red-50');
+            }
+            
             if (thresholdError) {
                 showError('gp2_threshold_error', thresholdError);
                 gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
             }
             
-            if (vendorError || thresholdError) {
+            if (vendorError || dateError || thresholdError) {
                 return;
             }
             
@@ -306,6 +370,7 @@
                     },
                     body: JSON.stringify({
                         vendor_id: vendorId,
+                        date_entry: dateEntry,
                         gp2_threshold: parseFloat(gp2Threshold)
                     })
                 });
@@ -313,16 +378,15 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-    // Build a clickable download link if download_url exists
-    let msg = result.message || `Successfully processed vendor ${vendorId}`;
-    if (result.download_url) {
-        msg += `<br><a href="${result.download_url}" target="_blank" class="text-red-900 underline font-bold">Download File</a>`;
-    }
-    showMessage('success', msg);
-} else {
-    showMessage('error', result.message || 'Failed to process vendor data');
-}
-
+                    // Build a clickable download link if download_url exists
+                    let msg = result.message || `Successfully processed vendor ${vendorId}`;
+                    if (result.download_url) {
+                        msg += `<br><a href="${result.download_url}" target="_blank" class="text-red-900 underline font-bold">Download File</a>`;
+                    }
+                    showMessage('success', msg);
+                } else {
+                    showMessage('error', result.message || 'Failed to process vendor data');
+                }
             } catch (error) {
                 showMessage('error', 'Network error. Please try again.');
             } finally {
