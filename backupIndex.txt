@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PW Vendor Input - BreakThru Beverage Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="min-h-screen p-5 bg-gradient-to-br from-red-900 via-red-800 to-gray-800 flex items-center justify-center">
+            <div class="relative w-full max-w-lg rounded-2xl shadow-2xl bg-white">
+                <div class="p-10 space-y-8">
+                    <!-- Brand Header -->
+                    <div class="text-center border-b-4 border-red-900 pb-6 mb-8">
+                        <h1 class="font-black text-red-900 uppercase tracking-tight text-4xl mb-3">
+                            BreakThru Beverage Group
+                        </h1>
+                        <h2 class="font-bold text-gray-800 uppercase tracking-wide text-2xl mb-2">
+                            PW Vendor Input
+                        </h2>
+                        <p class="text-gray-600 text-base">
+                            Process vendor information with margin analysis
+                        </p>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="messages" class="space-y-2 hidden"></div>
+
+                    <!-- Form -->
+                    <form id="vendorForm" class="space-y-8">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 space-y-6">
+                            <div class="bg-red-900 text-white font-bold uppercase tracking-wide text-sm px-4 py-2 -mx-6 -mt-6 mb-4 rounded-t-lg">
+                                Input Information
+                            </div>
+
+                            <!-- Vendor ID -->
+                            <div class="space-y-3">
+                                <label for="vendor_id" class="flex items-center gap-2 font-semibold text-gray-800 uppercase tracking-wide text-sm">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                    Vendor ID
+                                </label>
+                                <input 
+                                    id="vendor_id" 
+                                    type="text" 
+                                    placeholder="Enter 6-digit vendor ID"
+                                    maxlength="6"
+                                    class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
+                                    required
+                                />
+                                <p class="text-gray-500 italic text-center text-xs">
+                                    Must be 6 digits starting with '3' (e.g., 312345)
+                                </p>
+                                <p id="vendor_id_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
+                            </div>
+
+                            <!-- GP2 Threshold -->
+                            <div class="space-y-3">
+                                <label for="gp2_threshold" class="flex items-center gap-2 font-semibold text-gray-800 uppercase tracking-wide text-sm">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="1" x2="12" y2="23"/>
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                    </svg>
+                                    GP2 Margin Threshold
+                                </label>
+                                <input 
+                                    id="gp2_threshold" 
+                                    type="number" 
+                                    placeholder="0.25"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
+                                    required
+                                />
+                                <p class="text-gray-500 italic text-center text-xs">
+                                    Enter a decimal value between 0.00 and 1.00 (e.g., 0.25 for 25%)
+                                </p>
+                                <p id="gp2_threshold_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="flex gap-3">
+                            <button 
+                                type="submit" 
+                                id="submitBtn"
+                                class="flex-1 bg-red-900 hover:bg-red-800 text-white font-bold uppercase tracking-wider h-12 text-sm px-6 rounded-lg flex items-center justify-center transition-colors duration-200"
+                            >
+                                <svg class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9,11 12,14 22,4"/>
+                                    <path d="M21,12v7a2,2 0 0,1 -2,2H5a2,2 0 0,1 -2,-2V5a2,2 0 0,1 2,-2h11"/>
+                                </svg>
+                                Process Data
+                            </button>
+
+                            <button 
+                                type="button" 
+                                id="clearBtn"
+                                class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold uppercase tracking-wider h-12 text-sm px-6 rounded-lg flex items-center justify-center transition-colors duration-200"
+                            >
+                                <svg class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3,6 5,6 21,6"/>
+                                    <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                </svg>
+                                Clear Form
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let isSubmitting = false;
+
+        // Get DOM elements
+        const vendorForm = document.getElementById('vendorForm');
+        const vendorIdInput = document.getElementById('vendor_id');
+        const gp2ThresholdInput = document.getElementById('gp2_threshold');
+        const submitBtn = document.getElementById('submitBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const messagesDiv = document.getElementById('messages');
+        const vendorIdError = document.getElementById('vendor_id_error');
+        const gp2ThresholdError = document.getElementById('gp2_threshold_error');
+
+        // Validation functions
+        function validateVendorId(value) {
+            if (!/^3[0-9]{5}$/.test(value)) {
+                return "Vendor ID must be exactly 6 digits starting with '3'";
+            }
+            return null;
+        }
+
+        function validateGp2Threshold(value) {
+            const num = parseFloat(value);
+            if (isNaN(num) || num < 0 || num > 1) {
+                return "GP2 Margin Threshold must be between 0.00 and 1.00";
+            }
+            return null;
+        }
+
+        // Show/hide error messages
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function hideError(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.add('hidden');
+        }
+
+        // Show messages
+        function showMessage(type, text) {
+            messagesDiv.innerHTML = `
+                <div class="border rounded-lg p-4 ${type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}">
+                    <div class="flex items-center">
+                        <svg class="h-4 w-4 ${type === 'error' ? 'text-red-600' : 'text-green-600'} mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            ${type === 'error' 
+                                ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
+                                : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/>'
+                            }
+                        </svg>
+                        <span class="${type === 'error' ? 'text-red-800' : 'text-green-800'}">${text}</span>
+                    </div>
+                </div>
+            `;
+            messagesDiv.classList.remove('hidden');
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+            messagesDiv.classList.add('hidden');
+        }
+
+        // Clear form
+        function clearForm() {
+            vendorIdInput.value = '';
+            gp2ThresholdInput.value = '';
+            hideError('vendor_id_error');
+            hideError('gp2_threshold_error');
+            clearMessages();
+            vendorIdInput.classList.remove('border-red-500', 'bg-red-50');
+            gp2ThresholdInput.classList.remove('border-red-500', 'bg-red-50');
+            clearBtn.classList.add('shake');
+            setTimeout(() => clearBtn.classList.remove('shake'), 500);
+        }
+
+        // Event listeners
+        clearBtn.addEventListener('click', clearForm);
+
+        // Vendor ID input validation
+        vendorIdInput.addEventListener('input', function(e) {
+            const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+            e.target.value = value;
+            
+            hideError('vendor_id_error');
+            vendorIdInput.classList.remove('border-red-500', 'bg-red-50');
+            
+            if (value.length > 0) {
+                const error = validateVendorId(value);
+                if (error) {
+                    showError('vendor_id_error', error);
+                    vendorIdInput.classList.add('border-red-500', 'bg-red-50');
+                }
+            }
+        });
+
+        // GP2 Threshold input validation
+        gp2ThresholdInput.addEventListener('input', function(e) {
+            const value = e.target.value;
+            const num = parseFloat(value);
+            
+            hideError('gp2_threshold_error');
+            gp2ThresholdInput.classList.remove('border-red-500', 'bg-red-50');
+            
+            if (num > 1) {
+                e.target.value = '1.00';
+                showError('gp2_threshold_error', 'Value cannot exceed 1.00');
+                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
+            } else if (num < 0) {
+                e.target.value = '0.00';
+                showError('gp2_threshold_error', 'Value cannot be negative');
+                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
+            } else if (value && validateGp2Threshold(value)) {
+                showError('gp2_threshold_error', validateGp2Threshold(value));
+                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
+            }
+        });
+
+        // Form submission
+        vendorForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (isSubmitting) return;
+            
+            const vendorId = vendorIdInput.value;
+            const gp2Threshold = gp2ThresholdInput.value;
+            
+            // Clear previous messages
+            clearMessages();
+            hideError('vendor_id_error');
+            hideError('gp2_threshold_error');
+            
+            // Validate
+            const vendorError = validateVendorId(vendorId);
+            const thresholdError = validateGp2Threshold(gp2Threshold);
+            
+            if (vendorError) {
+                showError('vendor_id_error', vendorError);
+                vendorIdInput.classList.add('border-red-500', 'bg-red-50');
+            }
+            
+            if (thresholdError) {
+                showError('gp2_threshold_error', thresholdError);
+                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
+            }
+            
+            if (vendorError || thresholdError) {
+                return;
+            }
+            
+            // Set loading state
+            isSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <svg class="h-4 w-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+                    <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+                </svg>
+                Processing...
+            `;
+            
+            try {
+                // Replace this URL with your actual backend endpoint
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        vendor_id: vendorId,
+                        gp2_threshold: parseFloat(gp2Threshold)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('success', result.message || `Successfully processed vendor ${vendorId}`);
+                } else {
+                    showMessage('error', result.error || 'Failed to process vendor data');
+                }
+            } catch (error) {
+                showMessage('error', 'Network error. Please try again.');
+            } finally {
+                // Reset button
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `
+                    <svg class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9,11 12,14 22,4"/>
+                        <path d="M21,12v7a2,2 0 0,1 -2,2H5a2,2 0 0,1 -2,-2V5a2,2 0 0,1 2,-2h11"/>
+                    </svg>
+                    Process Data
+                `;
+            }
+        });
+
+        // Keyboard shortcut for clear form
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                clearForm();
+            }
+        });
+
+        console.log('Vendor Input Form loaded successfully!');
+    </script>
+</body>
+</html>
