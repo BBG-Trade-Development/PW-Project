@@ -41,11 +41,26 @@
                         </p>
                     </div>
 
-                    <!-- Messages -->
-                    <div id="messages" class="space-y-2 hidden"></div>
+                    <!-- Messages (Flash and API) -->
+                    <div id="messages" class="space-y-2">
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="border rounded-lg p-4 {{ 'border-red-200 bg-red-50' if category == 'error' else 'border-green-200 bg-green-50' }}">
+                                        <div class="flex items-center">
+                                            <svg class="h-4 w-4 {{ 'text-red-600' if category == 'error' else 'text-green-600' }} mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                {{ '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' if category == 'error' else '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/>' }}
+                                            </svg>
+                                            <span class="{{ 'text-red-800' if category == 'error' else 'text-green-800' }}">{{ message | safe }}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                    </div>
 
                     <!-- Form -->
-                    <form id="vendorForm" class="space-y-8">
+                    <form id="vendorForm" method="POST" action="/" class="space-y-8">
                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 space-y-6">
                             <div class="bg-red-900 text-white font-bold uppercase tracking-wide text-sm px-4 py-2 -mx-6 -mt-6 mb-4 rounded-t-lg">
                                 Input Information
@@ -62,17 +77,45 @@
                                 </label>
                                 <input 
                                     id="vendor_id" 
+                                    name="vendor_id"
                                     type="text" 
                                     placeholder="Enter 6-digit vendor ID"
                                     maxlength="6"
                                     class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
                                     required
+                                    aria-describedby="vendor_id_error"
                                 />
                                 <p class="text-gray-500 italic text-center text-xs">
                                     Must be 6 digits starting with '3' (e.g., 312345)
                                 </p>
-                                <p id="vendor_id_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
+                                <p id="vendor_id_error" class="text-red-600 font-semibold text-center text-xs hidden" role="alert"></p>
                             </div>
+
+<!-- Date Entry -->
+<div class="space-y-3">
+    <label for="date_entry" class="flex items-center gap-2 font-semibold text-gray-800 uppercase tracking-wide text-sm">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        Date Entry
+    </label>
+    <input 
+        id="date_entry" 
+        name="date_entry"
+        type="date"
+        value="{{ 'today' | strftime('%Y-%m-%d') }}"
+        class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
+        required
+        aria-describedby="date_entry_error"
+    />
+    <p class="text-gray-500 italic text-center text-xs">
+        Select a date (MM/DD/YYYY)
+    </p>
+    <p id="date_entry_error" class="text-red-600 font-semibold text-center text-xs hidden" role="alert"></p>
+</div>
 
                             <!-- GP2 Threshold -->
                             <div class="space-y-3">
@@ -85,6 +128,7 @@
                                 </label>
                                 <input 
                                     id="gp2_threshold" 
+                                    name="gp2_threshold"
                                     type="number" 
                                     placeholder="0.25"
                                     min="0"
@@ -92,11 +136,12 @@
                                     step="0.01"
                                     class="text-center font-medium h-12 text-lg px-4 rounded-lg border-2 border-gray-300 bg-gray-50 focus:border-red-900 focus:bg-white w-full focus:outline-none"
                                     required
+                                    aria-describedby="gp2_threshold_error"
                                 />
                                 <p class="text-gray-500 italic text-center text-xs">
                                     Enter a decimal value between 0.00 and 1.00 (e.g., 0.25 for 25%)
                                 </p>
-                                <p id="gp2_threshold_error" class="text-red-600 font-semibold text-center text-xs hidden"></p>
+                                <p id="gp2_threshold_error" class="text-red-600 font-semibold text-center text-xs hidden" role="alert"></p>
                             </div>
                         </div>
 
@@ -141,11 +186,13 @@
         // Get DOM elements
         const vendorForm = document.getElementById('vendorForm');
         const vendorIdInput = document.getElementById('vendor_id');
+        const dateEntryInput = document.getElementById('date_entry');
         const gp2ThresholdInput = document.getElementById('gp2_threshold');
         const submitBtn = document.getElementById('submitBtn');
         const clearBtn = document.getElementById('clearBtn');
         const messagesDiv = document.getElementById('messages');
         const vendorIdError = document.getElementById('vendor_id_error');
+        const dateEntryError = document.getElementById('date_entry_error');
         const gp2ThresholdError = document.getElementById('gp2_threshold_error');
 
         // Validation functions
@@ -154,6 +201,26 @@
                 return "Vendor ID must be exactly 6 digits starting with '3'";
             }
             return null;
+        }
+
+        function validateDateEntry(value) {
+            if (!value) {
+                return "Please select a valid date";
+            }
+            try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) {
+                    return "Invalid date format";
+                }
+                // Ensure date is in YYYY-MM-DD format
+                const formattedDate = date.toISOString().split('T')[0];
+                if (value !== formattedDate) {
+                    return "Date must be in YYYY-MM-DD format";
+                }
+                return null;
+            } catch {
+                return "Invalid date format";
+            }
         }
 
         function validateGp2Threshold(value) {
@@ -169,44 +236,60 @@
             const element = document.getElementById(elementId);
             element.textContent = message;
             element.classList.remove('hidden');
+            // Announce error to screen readers
+            element.setAttribute('aria-live', 'assertive');
         }
 
         function hideError(elementId) {
             const element = document.getElementById(elementId);
             element.classList.add('hidden');
+            element.removeAttribute('aria-live');
         }
 
         // Show messages
         function showMessage(type, text) {
-            messagesDiv.innerHTML = `
-                <div class="border rounded-lg p-4 ${type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}">
-                    <div class="flex items-center">
-                        <svg class="h-4 w-4 ${type === 'error' ? 'text-red-600' : 'text-green-600'} mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            ${type === 'error' 
-                                ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
-                                : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/>'
-                            }
-                        </svg>
-                        <span class="${type === 'error' ? 'text-red-800' : 'text-green-800'}">${text}</span>
-                    </div>
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `border rounded-lg p-4 ${type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`;
+            messageDiv.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="h-4 w-4 ${type === 'error' ? 'text-red-600' : 'text-green-600'} mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${type === 'error' 
+                            ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
+                            : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/>'
+                        }
+                    </svg>
+                    <span class="${type === 'error' ? 'text-red-800' : 'text-green-800'}">${text}</span>
                 </div>
             `;
+            messagesDiv.appendChild(messageDiv);
             messagesDiv.classList.remove('hidden');
+            // Announce message to screen readers
+            messagesDiv.setAttribute('aria-live', 'polite');
         }
 
         function clearMessages() {
-            messagesDiv.innerHTML = '';
-            messagesDiv.classList.add('hidden');
+            // Only clear API-generated messages, preserve flash messages
+            const apiMessages = messagesDiv.querySelectorAll(':not(.border-red-200):not(.border-green-200)');
+            apiMessages.forEach(msg => msg.remove());
+            if (!messagesDiv.hasChildNodes()) {
+                messagesDiv.classList.add('hidden');
+            }
         }
 
         // Clear form
         function clearForm() {
+            if (!confirm('Are you sure you want to clear the form?')) {
+                return;
+            }
             vendorIdInput.value = '';
+            dateEntryInput.value = new Date().toISOString().split('T')[0]; // Reset to today
             gp2ThresholdInput.value = '';
             hideError('vendor_id_error');
+            hideError('date_entry_error');
             hideError('gp2_threshold_error');
             clearMessages();
             vendorIdInput.classList.remove('border-red-500', 'bg-red-50');
+            dateEntryInput.classList.remove('border-red-500', 'bg-red-50');
             gp2ThresholdInput.classList.remove('border-red-500', 'bg-red-50');
             clearBtn.classList.add('shake');
             setTimeout(() => clearBtn.classList.remove('shake'), 500);
@@ -232,23 +315,31 @@
             }
         });
 
+        // Date Entry input validation
+        dateEntryInput.addEventListener('input', function(e) {
+            const value = e.target.value;
+            
+            hideError('date_entry_error');
+            dateEntryInput.classList.remove('border-red-500', 'bg-red-50');
+            
+            if (value) {
+                const error = validateDateEntry(value);
+                if (error) {
+                    showError('date_entry_error', error);
+                    dateEntryInput.classList.add('border-red-500', 'bg-red-50');
+                }
+            }
+        });
+
         // GP2 Threshold input validation
         gp2ThresholdInput.addEventListener('input', function(e) {
-            const value = e.target.value;
+            let value = e.target.value;
             const num = parseFloat(value);
             
             hideError('gp2_threshold_error');
             gp2ThresholdInput.classList.remove('border-red-500', 'bg-red-50');
             
-            if (num > 1) {
-                e.target.value = '1.00';
-                showError('gp2_threshold_error', 'Value cannot exceed 1.00');
-                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
-            } else if (num < 0) {
-                e.target.value = '0.00';
-                showError('gp2_threshold_error', 'Value cannot be negative');
-                gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
-            } else if (value && validateGp2Threshold(value)) {
+            if (value && (isNaN(num) || num < 0 || num > 1)) {
                 showError('gp2_threshold_error', validateGp2Threshold(value));
                 gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
             }
@@ -261,15 +352,18 @@
             if (isSubmitting) return;
             
             const vendorId = vendorIdInput.value;
+            const dateEntry = dateEntryInput.value;
             const gp2Threshold = gp2ThresholdInput.value;
             
-            // Clear previous messages
+            // Clear previous API messages
             clearMessages();
             hideError('vendor_id_error');
+            hideError('date_entry_error');
             hideError('gp2_threshold_error');
             
             // Validate
             const vendorError = validateVendorId(vendorId);
+            const dateError = validateDateEntry(dateEntry);
             const thresholdError = validateGp2Threshold(gp2Threshold);
             
             if (vendorError) {
@@ -277,12 +371,17 @@
                 vendorIdInput.classList.add('border-red-500', 'bg-red-50');
             }
             
+            if (dateError) {
+                showError('date_entry_error', dateError);
+                dateEntryInput.classList.add('border-red-500', 'bg-red-50');
+            }
+            
             if (thresholdError) {
                 showError('gp2_threshold_error', thresholdError);
                 gp2ThresholdInput.classList.add('border-red-500', 'bg-red-50');
             }
             
-            if (vendorError || thresholdError) {
+            if (vendorError || dateError || thresholdError) {
                 return;
             }
             
@@ -298,7 +397,7 @@
             `;
             
             try {
-                // Replace this URL with your actual backend endpoint
+                // Submit to /api/process
                 const response = await fetch('/api/process', {
                     method: 'POST',
                     headers: {
@@ -306,6 +405,7 @@
                     },
                     body: JSON.stringify({
                         vendor_id: vendorId,
+                        date_entry: dateEntry,
                         gp2_threshold: parseFloat(gp2Threshold)
                     })
                 });
@@ -313,16 +413,14 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-    // Build a clickable download link if download_url exists
-    let msg = result.message || `Successfully processed vendor ${vendorId}`;
-    if (result.download_url) {
-        msg += `<br><a href="${result.download_url}" target="_blank" class="text-red-900 underline font-bold">Download File</a>`;
-    }
-    showMessage('success', msg);
-} else {
-    showMessage('error', result.message || 'Failed to process vendor data');
-}
-
+                    let msg = result.message || `Successfully processed vendor ${vendorId}`;
+                    if (result.download_url) {
+                        msg += `<br><a href="${result.download_url}" target="_blank" class="text-red-900 underline font-bold hover:text-red-700">Download File</a>`;
+                    }
+                    showMessage('success', msg);
+                } else {
+                    showMessage('error', result.message || 'Failed to process vendor data');
+                }
             } catch (error) {
                 showMessage('error', 'Network error. Please try again.');
             } finally {
