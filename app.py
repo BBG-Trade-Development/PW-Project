@@ -23,6 +23,13 @@ app = Flask(__name__, template_folder=resource_path('templates'))
 # app.secret_key = For when we use sharepoint/data access
 output_dir = get_output_dir()
 
+# Define custom Jinja2 filter for strftime
+def strftime_filter(value, format_string):
+    if value == 'today':
+        return datetime.now().strftime(format_string)
+    return value
+app.jinja_env.filters['strftime'] = strftime_filter
+
 # Excel file -> use SharePoint
 price_book_path = resource_path('Price_Book_Full.xlsx')
 zpurcon_path = resource_path('ZPURCON.xlsx')
@@ -68,7 +75,7 @@ def calculate_gp2_with_validation(df):
 def pivot_key_sort_key(pivot_key_str):
     try:
         parts = pivot_key_str.split(' | ')
-        if len(parts) != 4:
+        if len(parts) != 6:
             print(f"Invalid Pivot Key: {pivot_key_str}")
             return (99, 99, 99, 9999)
         channel = parts[0]
@@ -102,7 +109,7 @@ def pivot_key_sort_key(pivot_key_str):
         print(f"Error in pivot_key_sort_key: {pivot_key_str}, Exception: {str(e)}")
         return (99, 99, 99, 9999)
 
-def process_data(vendor_id, gp2_threshold,date_entry):
+def process_data(vendor_id, gp2_threshold, date_entry):
     try:
         PB = pd.read_excel(price_book_path, sheet_name='Printer Friendly')
         ZPUR = pd.read_excel(zpurcon_path)
@@ -111,8 +118,7 @@ def process_data(vendor_id, gp2_threshold,date_entry):
     except Exception as e:
         return None, f"Error loading Excel files: {e}"
 
-
-# Version 2: 
+    # Version 2: 
     cols_to_merge = [
         'Supplier', 'Price Group #', 'Price Group Description', 'FOB', 'SPA', 'Miscellaneous',
         'Land Freight', 'Ocean Freight', 'Federal Tax', 'Broker Charge', 'Bulk Whiskey Fee',
@@ -132,14 +138,11 @@ def process_data(vendor_id, gp2_threshold,date_entry):
         how='left'
     ).drop(columns=['Material'])
 
-# We need to **FILTER OUT**:
-# - Mrp Controller = 100
-# - Stock in bottles <= 0 -> Renames to "Btls OH"
-    # Merge step (as before)
-
+    # We need to **FILTER OUT**:
+    # - Mrp Controller = 100
+    # - Stock in bottles <= 0 -> Renames to "Btls OH"
     PB_merged = PB_merged[PB_merged['Mrp Controller'] != 100] # excludes records that are equal to 100
     PB_merged = PB_merged[PB_merged['Stock in bottles'] > 0] # excludes records not greater than 0
-
 
     if 'Supplier' not in PB_merged.columns:
         return None, "Supplier column missing in merged data."
@@ -151,7 +154,7 @@ def process_data(vendor_id, gp2_threshold,date_entry):
         return None, f"Vendor ID {vendor_id} not found."
 
     try:
-        date_entry = pd.to_datetime(date_entry).date()
+        date_entry = pd.to_datetime(date_entry)
     except Exception as e:
         return None, f"Invalid date format: {e}"
 
@@ -168,14 +171,11 @@ def process_data(vendor_id, gp2_threshold,date_entry):
     if PB_input.empty:
         return None, f"No records found for vendor {vendor_id} on {date_entry}"
 
-
-
     # Determine vendor name
     vendor_name = "UnknownVendor" #If not found
     if 'Vendor' in PB_input.columns and not PB_input['Vendor'].dropna().empty:
         vendor_name = str(PB_input['Vendor'].dropna().iloc[0])
     else:
-        
         vendor_name = f"Vendor_{vendor_id}"
     vendor_name_sanitized = re.sub(r'[^\w-]', '', vendor_name).replace(' ', '_').strip('_') or "NoName"
 
@@ -556,7 +556,7 @@ def process_data(vendor_id, gp2_threshold,date_entry):
                         worksheet_brand.column_dimensions[column_letter].width = length + 4
 
                     # Apply borders
-                    side_medium = Side(style='medium')
+                    side_medium = Side(style='medium', color='000000')  # Black border
                     pcb_idx = brand_pivot.columns.get_loc('Product Cost Breakdown') + 1
                     pivot_key_excel_col_indices = []
                     start_col_for_pivot_keys = pcb_idx + 1
@@ -594,7 +594,10 @@ def process_data(vendor_id, gp2_threshold,date_entry):
                             if c_idx in pivot_key_excel_col_indices:
                                 if c_idx == pivot_key_excel_col_indices[-1] or (c_idx + 1) not in pivot_key_excel_col_indices:
                                     new_right = side_medium
-                            
+                            # Apply black border to every column past E (column 6 onward)
+                            if c_idx >= 5:  # Column E is index 5, so >= 6 starts at F
+                                new_right = side_medium
+
                             cell.border = Border(left=new_left, right=new_right, top=new_top, bottom=new_bottom)
         else:
             print("No Brand column found in PW_deduped.")
@@ -608,23 +611,36 @@ def process_data(vendor_id, gp2_threshold,date_entry):
 def index():
     if request.method == 'POST':
         vendor_id = request.form.get('vendor_id', '').strip()
+        date_entry = request.form.get('date_entry', '').strip()
         gp2_threshold = request.form.get('gp2_threshold', '').strip()
+        
+        # Validate vendor_id
         if not (vendor_id.isdigit() and len(vendor_id) == 6 and vendor_id.startswith('3')):
-            flash("Invalid Vendor ID.", 'error')
+            flash("Invalid Vendor ID. Must be 6 digits starting with '3'.", 'error')
             return redirect(url_for('index'))
+        
+        # Validate date_entry
+        try:
+            pd.to_datetime(date_entry)
+        except ValueError:
+            flash("Invalid date format. Use YYYY-MM-DD.", 'error')
+            return redirect(url_for('index'))
+        
+        # Validate gp2_threshold
         try:
             gp2_threshold_val = float(gp2_threshold)
             if not (0 <= gp2_threshold_val <= 1):
                 raise ValueError()
         except ValueError:
-            flash("Invalid GP2 threshold.", 'error')
+            flash("Invalid GP2 threshold. Must be a number between 0.00 and 1.00.", 'error')
             return redirect(url_for('index'))
-        filename, error = process_data(vendor_id, gp2_threshold_val)
+        
+        filename, error = process_data(vendor_id, gp2_threshold_val, date_entry)
         if error:
             flash(error, 'error')
             return redirect(url_for('index'))
-        flash(f"Processing complete! Download: {filename}", 'success')
-        return redirect(url_for('download_file', filename=filename))
+        flash(f"Processing complete! <a href='{url_for('download_file', filename=filename)}' target='_blank' class='text-red-900 underline font-bold'>Download: {filename}</a>", 'success')
+        return redirect(url_for('index'))
     return render_template('index.html')
 
 @app.route('/api/process', methods=['POST'])
@@ -634,16 +650,28 @@ def api_process():
         if not data:
             return jsonify({'success': False, 'message': 'No JSON data received'}), 400
         vendor_id = str(data.get('vendor_id', '')).strip()
+        date_entry = str(data.get('date_entry', '')).strip()
         gp2_threshold = str(data.get('gp2_threshold', '')).strip()
+        
+        # Validate vendor_id
         if not (vendor_id.isdigit() and len(vendor_id) == 6 and vendor_id.startswith('3')):
-            return jsonify({'success': False, 'message': "Invalid Vendor ID."}), 400
+            return jsonify({'success': False, 'message': "Invalid Vendor ID. Must be 6 digits starting with '3'."}), 400
+        
+        # Validate date_entry
+        try:
+            pd.to_datetime(date_entry)
+        except ValueError:
+            return jsonify({'success': False, 'message': "Invalid date format. Use YYYY-MM-DD."}), 400
+        
+        # Validate gp2_threshold
         try:
             gp2_threshold_val = float(gp2_threshold)
             if not (0 <= gp2_threshold_val <= 1):
                 raise ValueError()
         except ValueError:
-            return jsonify({'success': False, 'message': "Invalid GP2 threshold."}), 400
-        filename, error = process_data(vendor_id, gp2_threshold_val)
+            return jsonify({'success': False, 'message': "Invalid GP2 threshold. Must be a number between 0.00 and 1.00."}), 400
+        
+        filename, error = process_data(vendor_id, gp2_threshold_val, date_entry)
         if error:
             return jsonify({'success': False, 'message': error}), 500
         return jsonify({
